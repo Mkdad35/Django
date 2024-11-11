@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Django Project</title>
+    {% load static %}
+    <!-- Include your CSS files here -->
+    <!--link rel="stylesheet" href="{% static 'mainapp/css/styles.css' %}"-->
+    <!-- Include the auth.js script -->
+    <script src="{% static 'user/js/auth.js' %}" defer></script>
+</head>
+<body>
+    <!-- Navigation, header, etc. -->
+    
+    <!-- Content block -->
+    {% block content %}
+    {% endblock %}
+
+    <!-- Footer, scripts, etc. -->
+</body>
+</html>

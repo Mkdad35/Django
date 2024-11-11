@@ -1,0 +1,120 @@
+{% extends 'user/base.html' %}
+
+{% block content %}
+
+<div class="container">
+    <h2>User Login</h2>
+    <form id="loginForm">
+        <div>
+            <label for="username">Username:</label>
+            <input type="text" id="username" required>
+        </div>
+        <div>
+            <label for="password">Password:</label>
+            <input type="password" id="password" required>
+        </div>
+        <button type="submit">Login</button>
+    </form>
+
+    <div id="welcomeMessage" class="hidden result"></div>
+    <div id="tokenResults" class="hidden result">
+        <div id="tokenStatus"></div>
+        <div id="accessToken"></div>
+        <div id="refreshToken"></div>
+    </div>
+
+    <button id="verifyButton" class="hidden" style = "display: none">Verify Tokens</button>
+</div>
+
+<script>
+    console.log(Date.now());
+    const loginForm = document.getElementById('loginForm');
+    const verifyButton = document.getElementById('verifyButton');
+    let accessToken = '';
+    let refreshToken = '';
+
+    loginForm.addEventListener('submit', async (event) => {
+        event.preventDefault(); // Prevent the form from submitting normally
+    
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+    
+        try {
+            const response = await fetch('http://localhost:8000/user/api/token/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}' // Include CSRF token if required
+                },
+                body: JSON.stringify({ username, password })
+            });
+    
+            const result = await response.json(); // Read response once
+    
+            if (response.ok) {
+                const accessToken = result.access; // Store access token
+                const refreshToken = result.refresh; // Store refresh token
+                const accessExpiry = result.access_expiry; // Access token expiry time in seconds
+                // Calculate and store access token expiry time in milliseconds
+                storeTokens(accessToken, refreshToken, accessExpiry);
+    
+                document.getElementById('welcomeMessage').innerText = `Welcome ${username}!`;
+                document.getElementById('tokenResults').style.display = 'block';
+                document.getElementById('accessToken').innerText = `Access Token: ${accessToken}`;
+                document.getElementById('refreshToken').innerText = `Refresh Token: ${refreshToken}`;
+                verifyButton.style.display = 'inline'; // Show verify button
+            } else {
+                document.getElementById('tokenStatus').innerText = "Error: " + result.detail;
+                document.getElementById('tokenResults').style.display = 'block';
+            }
+        } catch (error) {
+            console.error("Error during login:", error);
+            document.getElementById('tokenStatus').innerText = "Login failed. Please try again.";
+            document.getElementById('tokenResults').style.display = 'block';
+        }
+    });
+    
+    // Store tokens and expiry date in local storage
+    function storeTokens(accessToken, refreshToken, accessExpiry) {
+        const expiryDate = accessExpiry * 1000; // Calculate expiry date in milliseconds
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('accessExpiry', expiryDate.toString()); // Store the calculated expiry date
+    }
+    
+    function logoutUser() {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('accessExpiry'); // Clear access expiry on logout
+        window.location.href = 'http://localhost:8000/user/login'; // Redirect to login
+    }
+    
+
+    verifyButton.addEventListener('click', async () => {
+        try {
+            const response = await fetchWithAuth('http://localhost:8000/user/api/token/verify/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    token: localStorage.getItem('accessToken') // Send the access token for verification
+                })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                document.getElementById('tokenStatus').innerText = result.message; // Show the server message
+            } else {
+                document.getElementById('tokenStatus').innerText = "Error: " + result.error; // Show error message
+            }
+            document.getElementById('tokenResults').style.display = 'block'; // Show results
+        } catch (error) {
+            console.error("Error during token verification:", error);
+            document.getElementById('tokenStatus').innerText = "Verification failed. Please try again.";
+        }
+    });
+</script>
+
+{% endblock %}
